@@ -95,4 +95,5 @@ def delete_event(event_id): # remove and event with id
         "event_id": event_id
     })
 
-delete_event(4)
+if __name__ == "__main__":
+    create_counter("pvp_id")
