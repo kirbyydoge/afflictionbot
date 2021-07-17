@@ -7,10 +7,16 @@ client = MongoClient(MONGO_TOKEN)
 db = client["afflictionbot"]
 
 def create_counter(counter_name): # makes human readable id fields for events
-    db["counters"].update_one({
+    collection = db["counters"]
+    result = collection.find({
+        "_id": counter_name
+    })
+    if len(list(result)) > 0:
+        return "counterexists"
+    collection.insert_one({
         "_id": counter_name,
         "sequence_value": 0
-    }, upsert=True)
+    })
     
 def get_next_id(counter_name):  # returns current sequence number and updates named couter
     ret = db["counters"].find_one_and_update({"_id": counter_name}, {"$inc": {"sequence_value": 1}})
