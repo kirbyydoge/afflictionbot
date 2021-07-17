@@ -133,6 +133,9 @@ async def listevents(ctx:commands.Context):
         nameText += "{}\n".format(event["event_name"])
         idText += "{}\n".format(event["event_id"])
         count += 1
+    if len(nameText) == 0:
+        nameText = "No event found"
+        idText = "No event found"
     embed.add_field(name="Event Name", value=nameText, inline=True)
     embed.add_field(name="Event ID", value=idText, inline=True)
     embed.set_footer(text=f"Event count: {count}")
@@ -214,6 +217,9 @@ async def listme(ctx:commands.Context, *, arg=None):
         nameText += "{}\n".format(name)
         idText += "{}\n".format(id)
         count += 1
+    if len(nameText) == 0:
+        nameText = "No event found"
+        idText = "No event found"
     embed.add_field(name="Event Name", value=nameText, inline=True)
     embed.add_field(name="Event ID", value=idText, inline=True)
     embed.set_footer(text=f"Event count: {count}")
