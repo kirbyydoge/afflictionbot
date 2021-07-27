@@ -101,5 +101,62 @@ def delete_event(event_id): # remove and event with id
         "event_id": event_id
     })
 
+def fetch_youtubers():
+    collection = db["youtuber_table"]
+    result = list(collection.find())
+    return result
+
+def add_youtuber(youtuber_name, channel_url):
+    collection = db["youtuber_table"]
+    result = collection.find({
+        "name": youtuber_name,
+        "url": channel_url
+    })
+    if len(list(result)) > 0:
+        return "exists"
+    collection.insert_one({
+        "name": youtuber_name,
+        "url": channel_url
+    })
+    return "success"
+
+def delete_youtuber(youtuber_name):  
+    collection = db["youtuber_table"]
+    collection.delete_one({
+        "name": youtuber_name
+    })
+
+def youtube_cache_save(cached_videos):
+    collection = db["bot_cache"]
+    collection.delete_one({
+        "__cache_name": "youtube"
+    })
+    cached_videos["__cache_name"] = "youtube"
+    collection.insert_one(cached_videos)
+
+def youtube_cache_load():
+    collection = db["bot_cache"]
+    result = collection.find_one({
+        "__cache_name": "youtube"
+    })
+    return result
+
+def youtube_channel_save(channel_id):
+    collection = db["bot_cache"]
+    collection.delete_one({
+        "__cache_name": "youtube_channel"
+    })
+    collection.insert_one({
+        "__cache_name": "youtube_channel",
+        "id": channel_id
+    })
+
+def youtube_channel_load():
+    collection = db["bot_cache"]
+    result = collection.find_one({
+        "__cache_name": "youtube_channel"
+    })
+    return result["id"] if result else None
+
 if __name__ == "__main__":
     create_counter("pvp_id")
