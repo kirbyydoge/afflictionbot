@@ -1,3 +1,5 @@
+print("PROCESS BEGIN")
+
 from logging import error
 import os
 
