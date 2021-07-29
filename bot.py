@@ -166,7 +166,7 @@ async def help(ctx:commands.Context, *arg):
 @client.event
 async def on_ready():
 	global youtube, youtube_channel, cached_videos, cached_youtubers
-    print("Setting Up")
+	print("Setting Up")
 	youtube = build('youtube', 'v3', developerKey=GOOGLE_DEV_KEY)
 	youtube_channel_id = bdb.youtube_channel_load()
 	if youtube_channel_id:
@@ -177,7 +177,7 @@ async def on_ready():
 		cached_videos = {}
 	update_cache()
 	youtube_check.start()
-    print("Ready To Roll")
+	print("Ready To Roll")
 
 @tasks.loop(seconds=60)
 async def youtube_check():
