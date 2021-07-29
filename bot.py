@@ -1,6 +1,8 @@
+from logging import error
 import os
 
 import discord
+from discord.colour import Colour
 from discord.ext import commands, tasks
 from discord.utils import get
 from googleapiclient.discovery import build
@@ -8,18 +10,27 @@ from googleapiclient.discovery import build
 import botdb as bdb
 from user import User
 
+from globalvars import production
+
+authorized_user = 165686666198122496 #cp memberi
+
 EMPTY_CHAR = "\u200b"
 GOOGLE_DEV_KEY = os.environ["GOOGLE_DEV_KEY"]
-BOT_TOKEN = os.environ["BOT_TOKEN"]
-client = commands.Bot(command_prefix="!ab ")
+if production:
+	BOT_TOKEN = os.environ["BOT_TOKEN"]
+	client = commands.Bot(command_prefix="!ab ")
+else:
+	BOT_TOKEN = os.environ["TEST_TOKEN"]
+	client = commands.Bot(command_prefix="!rb ")
 client.remove_command("help")
 
+error_buffer = []
 cached_youtubers = []
 cached_videos = None
 youtube_channel = None
 youtube = None
 
-"""UTIL FUNCS"""
+"""UTIL SETUP FUNCS"""
 def load_youtubers():
 	global cached_youtubers
 	cached_youtubers = []
@@ -32,6 +43,7 @@ def update_cache():
 	load_youtubers()
 	for name, url in cached_youtubers:
 		if not cached_videos.get(name):
+			print(f"Initializing entry for {name}.")
 			req = youtube.playlistItems().list(
 				playlistId = url,
 				part = "snippet",
@@ -41,53 +53,7 @@ def update_cache():
 			video_id = res['items'][0]['snippet']['resourceId']['videoId']
 			cached_videos[name] = video_id
 
-@client.event
-async def on_ready():
-	global youtube, youtube_channel, cached_videos, cached_youtubers
-	youtube = build('youtube', 'v3', developerKey=GOOGLE_DEV_KEY)
-	youtube_channel_id = bdb.youtube_channel_load()
-	if youtube_channel_id:
-		youtube_channel = await client.fetch_channel(youtube_channel_id)
-	cached_videos = bdb.youtube_cache_load()
-	if not cached_videos:
-		cached_videos = {}
-	load_youtubers()
-	update_cache()
-	youtube_check.start()
-
-
-@tasks.loop(seconds=10)
-async def youtube_check():
-	load_youtubers()
-	for youtuber in cached_youtubers:
-		yt_name = youtuber[0]
-		yt_url = youtuber[1]
-		req = youtube.playlistItems().list(
-			playlistId = yt_url,
-			part = "snippet",
-			maxResults = 1
-		)
-		res = req.execute()
-		video_id = res['items'][0]['snippet']['resourceId']['videoId']
-		try:
-			if cached_videos[yt_name] != video_id:
-				cached_videos[yt_name] = video_id
-				message = f"{yt_name} just posted a new video!\nVideo Link: https://www.youtube.com/watch?v={video_id}"
-				if youtube_channel:
-					await youtube_channel.send(message)
-				else:
-					print("NO CHANNEL SPECIFIED FOR NOTIFICATIONS")
-		except:
-			print(f"Error on: {yt_name}. (Ignore this if it does not keep repeating.)")
-	bdb.youtube_cache_save(cached_videos)
-
-@client.command()
-async def setyoutubechannel(ctx:commands.Context, *arg):
-	global youtube_channel
-	channel_id = ctx.message.channel.id
-	bdb.youtube_channel_save(channel_id)
-	youtube_channel = await client.fetch_channel(channel_id)
-
+"""MAIN BOT FUNCS"""
 @client.command()
 async def help(ctx:commands.Context, *arg):
 	if len(arg) == 0:
@@ -162,6 +128,85 @@ async def help(ctx:commands.Context, *arg):
 		message = "Provides a list of events you are in."
 		embed.add_field(name="\u200b", value=message, inline=True)
 		await ctx.send(embed=embed)
+	elif arg[0] == "addyoutuber":
+		embed = discord.Embed(
+			title = "<!ab addyoutuber <name>, <playlist_url>>",
+			color = discord.Colour.red()
+		)
+		message = "Get notifications of uploads from the given list.\nYou need to obtain main list id if you want to follow the whole channel.\nPlease use 1 notification per youtuber."
+		embed.add_field(name="\u200b", value=message, inline=True)
+		await ctx.send(embed=embed)
+	elif arg[0] == "deleteyoutuber":
+		embed = discord.Embed(
+			title = "<!ab deleteyoutuber name>",
+			color = discord.Colour.red()
+		)
+		message = "Stop following youtuber notifications."
+		embed.add_field(name="\u200b", value=message, inline=True)
+		await ctx.send(embed=embed)
+	elif arg[0] == "listyoutubers":
+		embed = discord.Embed(
+			title = "<!ab listyoutubers>",
+			color = discord.Colour.red()
+		)
+		message = "Provides a list of youtuber notifications and lists."
+		embed.add_field(name="\u200b", value=message, inline=True)
+		await ctx.send(embed=embed)
+	elif arg[0] == "setyoutubechannel":
+		embed = discord.Embed(
+			title = "<!ab listyoutubers>",
+			color = discord.Colour.red()
+		)
+		message = "Set the main notification channel."
+		embed.add_field(name="\u200b", value=message, inline=True)
+		await ctx.send(embed=embed)
+
+@client.event
+async def on_ready():
+	global youtube, youtube_channel, cached_videos, cached_youtubers
+	youtube = build('youtube', 'v3', developerKey=GOOGLE_DEV_KEY)
+	youtube_channel_id = bdb.youtube_channel_load()
+	if youtube_channel_id:
+		youtube_channel = await client.fetch_channel(youtube_channel_id)
+	cached_videos = bdb.youtube_cache_load()
+	if not cached_videos:
+		print("Setting up new cache.")
+		cached_videos = {}
+	update_cache()
+	youtube_check.start()
+
+@tasks.loop(seconds=60)
+async def youtube_check():
+	load_youtubers()
+	for youtuber in cached_youtubers:
+		yt_name = youtuber[0]
+		yt_url = youtuber[1]
+		req = youtube.playlistItems().list(
+			playlistId = yt_url,
+			part = "snippet",
+			maxResults = 1
+		)
+		res = req.execute()
+		video_id = res['items'][0]['snippet']['resourceId']['videoId']
+		try:
+			if cached_videos[yt_name] != video_id:
+				cached_videos[yt_name] = video_id
+				message = f"{yt_name} posted a new video!\nVideo Link: https://www.youtube.com/watch?v={video_id}"
+				if youtube_channel:
+					await youtube_channel.send(message)
+				else:
+					print("NO CHANNEL SPECIFIED FOR NOTIFICATIONS")
+		except:
+			print(f"Error on: {yt_name}. (Ignore this if it does not keep repeating.)")
+	bdb.youtube_cache_save(cached_videos)
+
+@client.command()
+@commands.has_permissions(administrator=True)
+async def setyoutubechannel(ctx:commands.Context, *arg):
+	global youtube_channel
+	channel_id = ctx.message.channel.id
+	bdb.youtube_channel_save(channel_id)
+	youtube_channel = await client.fetch_channel(channel_id)
 
 @client.command()
 @commands.has_permissions(administrator=True)
@@ -356,6 +401,32 @@ async def listme(ctx:commands.Context, *, arg=None):
 	embed.set_footer(text=f"Event count: {count}")
 	await ctx.send(embed=embed)
 
+@client.command()
+async def viewerrorbuffer(ctx:commands.Context, *, arg=None):
+	user = User(ctx)
+	if user.user_id != authorized_user:
+		embed = discord.Embed(
+			title = "Authorized user only command",
+			color = discord.Colour.red
+		)
+		return
+	for content, guild_id, author_id, error in error_buffer:
+		print("ERROR: message:{} server:{} author:{}".format(content, guild_id, author_id))
+		print("ERROR:", error)
+
+@client.command()
+async def consumerrorbuffer(ctx:commands.Context, *, arg=None):
+	global error_buffer
+	user = User(ctx)
+	if user.user_id != authorized_user:
+		embed = discord.Embed(
+			title = "Authorized user only command",
+			color = discord.Colour.red
+		)
+		return
+	error_buffer = []
+	print("Success")
+
 @help.error
 @createevent.error
 @listevents.error
@@ -364,6 +435,7 @@ async def listme(ctx:commands.Context, *, arg=None):
 @listplayers.error
 @listme.error
 async def unresolved_error(ctx:commands.Context, error):
+	error_buffer.append((ctx.message.content, ctx.message.guild.id, ctx.message.author.id, error))
 	print("ERROR: message:{} server:{} author:{}".format(ctx.message.content, ctx.message.guild.id, ctx.message.author.id))
 	print("ERROR:", error)
 	embed = discord.Embed(
@@ -371,7 +443,7 @@ async def unresolved_error(ctx:commands.Context, error):
 		color = discord.Color.red()
 	)
 	embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/219037484531580929/764304895909298206/tenor.gif")
-	embed.add_field(name="If you have other issues. You can contact me at:", value="Email: hoyfjeldsbildee@gmail.com\nInstagram: @kirbyydoge", inline=True)
+	embed.add_field(name="If you have other issues. You can contact me at:", value="Email: hoyfjeldsbildee@gmail.com\nInstagram: @kirbyydoge\nTwitter: @kirbyydoge", inline=True)
 	embed.set_footer(text="Make sure your provide a brief explanation (if possible with screenshots) of how this bug occured.")
 	await ctx.send(embed=embed)
 

@@ -1,10 +1,14 @@
 import pymongo
 import os
 from pymongo import MongoClient
+from globalvars import production
 
 MONGO_TOKEN = os.environ["MONGO_TOKEN"]
 client = MongoClient(MONGO_TOKEN)
-db = client["afflictionbot"]
+if production:
+    db = client["afflictionbot"]
+else:
+    db = client["testdb"]
 
 def create_counter(counter_name): # makes human readable id fields for events
     collection = db["counters"]
