@@ -8,7 +8,7 @@ class User():
         self.username = ctx.message.author.display_name
         self.picture = ctx.message.author.avatar_url
 
-    def get_embed(self, title):
+    def get_embed(self, title): 
         embed = discord.Embed(
             title = title,
             color = discord.Colour.red()
